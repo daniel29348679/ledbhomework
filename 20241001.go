@@ -21,18 +21,16 @@ func main() {
 		c.String(http.StatusOK, "Hello World!")
 	})
 	api := r.Group("/api")
-	api.POST("/post", func(c *gin.Context) {
+	api.GET("/post", func(c *gin.Context) {
 		n := c.PostForm("name")
 		fmt.Println(n)
 		todolist = append(todolist, TODO{Name: n, Done: false})
 		c.JSON(http.StatusOK, "Added")
 		fmt.Println(todolist)
 	})
-	api.POST("/list", func(c *gin.Context) {
+	api.GET("/list", func(c *gin.Context) {
 		sel := c.PostForm("select")
-		if sel == "all" {
-			c.JSON(http.StatusOK, todolist)
-		} else if sel == "true" {
+		if sel == "true" {
 			done := []TODO{}
 			for _, v := range todolist {
 				if v.Done {
@@ -48,10 +46,12 @@ func main() {
 				}
 			}
 			c.JSON(http.StatusOK, notdone)
+		} else {
+			c.JSON(http.StatusOK, todolist)
 		}
 	})
 
-	api.POST("/put", func(c *gin.Context) {
+	api.GET("/put", func(c *gin.Context) {
 		n := c.PostForm("name")
 		mark := c.PostForm("mark")
 		for i, v := range todolist {
@@ -67,7 +67,7 @@ func main() {
 		c.JSON(http.StatusOK, "Updated")
 	})
 
-	api.POST("/delete", func(c *gin.Context) {
+	api.GET("/delete", func(c *gin.Context) {
 		n := c.PostForm("name")
 		for i, v := range todolist {
 			if v.Name == n {
