@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type TODO struct {
@@ -13,8 +15,12 @@ type TODO struct {
 }
 
 func main() {
-
-	todolist := []TODO{}
+	//mysql://root:123456@localhost:3306/todo_list
+	db, err := sql.Open("mysql", "root:123456@tcp(localhost:3306)/homework")
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
+	}
 
 	r := gin.Default()
 	r.GET("/", func(c *gin.Context) {
@@ -23,57 +29,84 @@ func main() {
 	api := r.Group("/api")
 	api.GET("/post", func(c *gin.Context) {
 		n := c.PostForm("name")
-		fmt.Println(n)
-		todolist = append(todolist, TODO{Name: n, Done: false})
+		_, err := db.Exec("INSERT INTO todo_list (name, done) VALUES (?, ?)", n, "false")
+
+		if err != nil {
+			panic(err)
+		}
+
 		c.JSON(http.StatusOK, "Added")
-		fmt.Println(todolist)
 	})
 	api.GET("/list", func(c *gin.Context) {
+		var result string
 		sel := c.PostForm("select")
 		if sel == "true" {
-			done := []TODO{}
-			for _, v := range todolist {
-				if v.Done {
-					done = append(done, v)
-				}
+			result = ""
+			rows, err := db.Query("SELECT * FROM todo_list WHERE done = ?", "true")
+			if err != nil {
+				panic(err)
 			}
-			c.JSON(http.StatusOK, done)
+			for rows.Next() {
+				var name string
+				var done string
+				err = rows.Scan(&name, &done)
+				if err != nil {
+					panic(err)
+				}
+				result += name + " " + done + "\n"
+			}
+
+			c.JSON(http.StatusOK, result)
 		} else if sel == "false" {
-			notdone := []TODO{}
-			for _, v := range todolist {
-				if !v.Done {
-					notdone = append(notdone, v)
-				}
+			result = ""
+			rows, err := db.Query("SELECT * FROM todo_list WHERE done = ?", "false")
+			if err != nil {
+				panic(err)
 			}
-			c.JSON(http.StatusOK, notdone)
+			for rows.Next() {
+				var name string
+				var done string
+				err = rows.Scan(&name, &done)
+				if err != nil {
+					panic(err)
+				}
+				result += name + " " + done + "\n"
+			}
+			c.JSON(http.StatusOK, result)
 		} else {
-			c.JSON(http.StatusOK, todolist)
+			result = ""
+			rows, err := db.Query("SELECT * FROM todo_list")
+			if err != nil {
+				panic(err)
+			}
+			for rows.Next() {
+				var name string
+				var done string
+				err = rows.Scan(&name, &done)
+				if err != nil {
+					panic(err)
+				}
+				result += name + " " + done
+			}
+			c.JSON(http.StatusOK, result)
 		}
 	})
 
 	api.GET("/put", func(c *gin.Context) {
 		n := c.PostForm("name")
 		mark := c.PostForm("mark")
-		for i, v := range todolist {
-			if v.Name == n {
-				if mark == "true" {
-					todolist[i].Done = true
-				} else {
-					todolist[i].Done = false
-				}
-				break
-			}
+		_, err := db.Exec("UPDATE todo_list SET done = ? WHERE name = ?", mark, n)
+		if err != nil {
+			panic(err)
 		}
 		c.JSON(http.StatusOK, "Updated")
 	})
 
 	api.GET("/delete", func(c *gin.Context) {
 		n := c.PostForm("name")
-		for i, v := range todolist {
-			if v.Name == n {
-				todolist = append(todolist[:i], todolist[i+1:]...)
-				break
-			}
+		_, err := db.Exec("DELETE FROM todo_list WHERE name = ?", n)
+		if err != nil {
+			panic(err)
 		}
 		c.JSON(http.StatusOK, "Deleted")
 	})
